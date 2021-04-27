@@ -10,7 +10,7 @@ namespace code
 
 
         /// <summary>Създава дърво от дадения низ който представлява израза.</summary>
-        public static ExpressionTree BuildTree(string expression)
+        public static ExpressionTree Build(string expression)
         {
             Node node = BuildNode(expression);
 
@@ -100,6 +100,68 @@ namespace code
              
 
             return newNode;
+        }
+    
+    
+        /// <summary>Изчислява израза в дървото.</summary>
+        public double Evaluate() => Evaluate(this);
+
+
+        // Рекурсивен метод с който в дълбочина пресмятаме всеки Node.
+        private double Evaluate(Node node)
+        {
+            double result;
+
+            // Проверяваме дали текущия израз има символ. 
+            if (node.Symbol != default)
+            {
+                // Чрез рекурсия извикваме същия медот за лявата и дясната част на израза.
+                double leftValue = Evaluate(node.Left);
+                double rightValue = Evaluate(node.Right);
+
+                // Изчисляваме текущия израз.
+                result = Calculate(leftValue, rightValue, node.Symbol);
+            }
+            // Ако израза няма символ
+            else
+            {
+                // Резултатът е само число.
+                result = node.Value;
+            }  
+ 
+            return result;            
+        }
+
+
+        // Изчислява прост израз.
+        private double Calculate(double n1, double n2, char symbol)
+        {
+            double result;
+
+            // Проверяваме дали символът е валиден. Ако е, тогава изчисляваме.
+            switch (symbol)
+            {
+                case '+':
+                    result = n1 + n2;
+                    break;
+                case '-':
+                    result = n1 - n2;
+                    break;
+                case '*':
+                    result = n1 * n2;
+                    break;
+                case '/':
+                    if (n2 != 0) result = n1 / n2;
+                    else throw new DivideByZeroException($"Делене на нула при [{n1}/{n2}]!");
+                    break;
+                case '^':
+                    result = Math.Pow(n1, n2);
+                    break;
+                // Ако символът е непознат, хвърляме грешка.
+                default: throw new Exception($"Непознат аритметичен символ [{symbol}]!");
+            }
+
+            return result;
         }
     }
 
