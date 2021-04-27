@@ -3,34 +3,32 @@ using System.Linq;
 
 namespace code
 {
-    public class ExpressionTree : Node // Има всички качества на Node класа.
+    /// <summary>Бинарно изразно дърво с което се представят аритметични изрази.</summary>
+    public class ExpressionTree
     {
         private ExpressionTree() {} // Не ни е нужно да правим обект от този клас, защото имаме метод за това.
 
+
+        /// <summary>Корена на дървото.</summary>
+        private IExpression _root { get; set; }
 
 
         /// <summary>Създава дърво от дадения низ който представлява израза.</summary>
         public static ExpressionTree Build(string expression)
         {
-            Node node = BuildNode(expression);
-
-            ExpressionTree tree = new ExpressionTree()
+            return new ExpressionTree()
             {
-                Left = node.Left,
-                Right = node.Right,
-                Value = node.Value,
-                Symbol = node.Symbol
+                _root = BuildExpression(expression)
             };
-
-            return tree;
         }
 
 
 
         /// <summary>Рекурсивно създава дървото, като разделя всеки кратък израз на отделен Node.</summary>
-        private static Node BuildNode(string expression)
+        private static IExpression BuildExpression(string expression)
         {
-            Node newNode = new Node();
+            // Съдържа подразбиращата стойност която по-нататък ще се промени.
+            IExpression result = default;
 
             // Проверяваме дали в израза има задължителните скоби с които ни показват началото и края на
             // отделните другите изрази в него.
@@ -65,13 +63,18 @@ namespace code
                             // разделим израза на два под-израза.
                             else if (cp == op - 1)
                             {
+                                Expression newExpression = new Expression();
+
                                 // Рекурсивно извикваме същия метод, но с новия под-израз за
                                 // лявата и дясна част, като по средата е аритметичния символ.
-                                newNode.Left = BuildNode(expression.Substring(1, i++));
-                                newNode.Symbol = expression[i++];
-                                newNode.Right = BuildNode(expression.Substring(i, expression.Length - i - 1));
+                                newExpression.Left = BuildExpression(expression.Substring(1, i++));
+                                // Символа е от тип Char, но ние можем да го запишем като Double като
+                                // стойноста му ще е ascii кода.
+                                newExpression.Value = expression[i++];
+                                newExpression.Right = BuildExpression(expression.Substring(i, expression.Length - i - 1));
 
-                                // Прекратяваме цикъла, защото сме приключили с текущия израз.
+                                result = newExpression;
+
                                 break;
                             }
                         }
@@ -80,53 +83,59 @@ namespace code
                 // Ако изразът не съдържа аритметични символи, товага е само число.
                 else
                 {
-                    double num;
+                    Constant newConstant = new Constant();
+                    double value;
 
                     // Проверяваме дали всъщност е число.
                     try 
                     {
-                        num = Convert.ToDouble(expression.Substring(1, expression.Length-2));
+                        value = Convert.ToDouble(expression.Substring(1, expression.Length-2));
                     }
                     catch (FormatException)
                     {
                         throw new Exception($"Неуспешно преобразуване на {expression} в число!");
                     }
 
-                    newNode.Value = num;
+                    newConstant.Value = value;
+                    result = newConstant;
                 }
             }
             // Ако изразът не съдържа задължителните скоби, тогава неможем да продължим.
             else throw new Exception("Скобите са сложени неправилно!");
-             
 
-            return newNode;
+            return result;
         }
     
     
+
         /// <summary>Изчислява израза в дървото.</summary>
-        public double Evaluate() => Evaluate(this);
+        public double Evaluate() => Evaluate(this._root);
 
 
         // Рекурсивен метод с който в дълбочина пресмятаме всеки Node.
-        private double Evaluate(Node node)
+        private double Evaluate(IExpression expression)
         {
             double result;
 
-            // Проверяваме дали текущия израз има символ. 
-            if (node.Symbol != default)
+            // Проверяваме дали текущия израз има е израз който има символ. 
+            if (expression.GetType() == typeof(Expression))
             {
                 // Чрез рекурсия извикваме същия медот за лявата и дясната част на израза.
-                double leftValue = Evaluate(node.Left);
-                double rightValue = Evaluate(node.Right);
+                var exp = expression as Expression;
+                double leftValue = Evaluate(exp.Left);
+                double rightValue = Evaluate(exp.Right);
+
+                // Преобразуваме стойноста от ascii код към символ.
+                char symbol = (char)exp.Value;
 
                 // Изчисляваме текущия израз.
-                result = Calculate(leftValue, rightValue, node.Symbol);
+                result = Calculate(leftValue, rightValue, symbol);
             }
             // Ако израза няма символ
             else
             {
-                // Резултатът е само число.
-                result = node.Value;
+                // Резултатът е число тоест от класа Constant.
+                result = expression.Value;
             }  
  
             return result;            
@@ -163,13 +172,5 @@ namespace code
 
             return result;
         }
-    }
-
-    public class Node
-    {
-        public double Value { get; set; }
-        public Node Left { get; set; }
-        public Node Right { get; set; }
-        public char Symbol { get; set; }
     }
 }
