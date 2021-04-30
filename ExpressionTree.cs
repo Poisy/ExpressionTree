@@ -6,11 +6,8 @@ namespace code
     /// <summary>Бинарно изразно дърво с което се представят аритметични изрази.</summary>
     public class ExpressionTree
     {
-        private ExpressionTree() {} // Не ни е нужно да правим обект от този клас, защото имаме метод за това.
-
-
         /// <summary>Корена на дървото.</summary>
-        private IExpression _root { get; set; }
+        public IExpression Root { get; set; }
 
 
         /// <summary>Създава дърво от дадения низ който представлява израза.</summary>
@@ -18,7 +15,7 @@ namespace code
         {
             return new ExpressionTree()
             {
-                _root = BuildExpression(expression)
+                Root = BuildExpression(expression)
             };
         }
 
@@ -107,18 +104,67 @@ namespace code
         }
     
     
+        /// <summary>Връща низ който представлява израза на дървото.</summary>
+        public string GetExpression() 
+        {
+            string result = GetExpression(Root);
+
+            // Почти винаги ще имаме скоби които ще ограждат всичко, но на нас не ни трябват.
+            if (result[0] == '(') result = result.Substring(1, result.Length - 2);
+
+            return result;
+        } 
+
+
+        // Рекурсивен метод с който структурираме един израз от всички под-изрази.
+        private string GetExpression(IExpression exp)
+        {
+            string result; // Резултатът който връщаме.
+            Type expType = exp.GetType(); // Типът на текущия израз който е от интерфейсът IExpression.
+
+            // Ако е от тип Expression, тоест е аритметичен символ с ляво и дясно дете.
+            if (expType == typeof(Expression))
+            {
+                Expression expression = exp as Expression;
+
+                // Рекурсивно извикваме същия медот за двете деца.
+                string left = GetExpression(expression.Left);
+                string right = GetExpression(expression.Right);
+
+                // Преобразуваме ascii кода обратно в символ.
+                char symbol = (char)expression.Value;
+
+                // Структурираме резултатът.
+                result = $"({left}{symbol}{right})";
+            }
+            // Ако е от тип Constant, тоест е число и няма деца.
+            else if (expType == typeof(Constant))
+            {
+                Constant constant = exp as Constant;
+
+                // Резултатът ни е самото число.
+                result = constant.Value.ToString();
+            }
+            // Ако типът е непознат.
+            else throw new TypeInitializationException(expType.FullName, new Exception("Непознат тип."));
+
+            return result;
+        }
+
+
 
         /// <summary>Изчислява израза в дървото.</summary>
-        public double Evaluate() => Evaluate(this._root);
+        public double Evaluate() => Evaluate(this.Root);
 
 
         // Рекурсивен метод с който в дълбочина пресмятаме всеки Node.
         private double Evaluate(IExpression expression)
         {
-            double result;
+            double result; // Резултатът който връщаме.
+            Type expType = expression.GetType(); // Типът на текущия израз който е от интерфейсът IExpression.
 
-            // Проверяваме дали текущия израз има е израз който има символ. 
-            if (expression.GetType() == typeof(Expression))
+            // Ако е от тип Expression, тоест е аритметичен символ с ляво и дясно дете.
+            if (expType == typeof(Expression))
             {
                 // Чрез рекурсия извикваме същия медот за лявата и дясната част на израза.
                 var exp = expression as Expression;
@@ -131,12 +177,14 @@ namespace code
                 // Изчисляваме текущия израз.
                 result = Calculate(leftValue, rightValue, symbol);
             }
-            // Ако израза няма символ
-            else
+            // Ако е от тип Constant, тоест е число и няма деца.
+            else if (expType == typeof(Constant))
             {
                 // Резултатът е число тоест от класа Constant.
                 result = expression.Value;
-            }  
+            }
+            // Ако типът е непознат.
+            else throw new TypeInitializationException(expType.FullName, new Exception("Непознат тип."));
  
             return result;            
         }
